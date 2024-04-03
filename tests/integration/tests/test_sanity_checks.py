@@ -290,6 +290,7 @@ def wait_components_list(actual: AgentComponentMapping, expected: AgentExpectedM
         time.sleep(COMPONENTS_BACKOFF)
         actual.load_map()
 
+    print(f"DEBUG: {expected.expected_map} != {actual.component_map}")
     assert expected.expected_map[component] == len(
         actual.component_map[component],
     ), f"Expected {expected.expected_map[component]} agents running\
