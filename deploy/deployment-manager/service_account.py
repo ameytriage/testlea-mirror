@@ -21,6 +21,17 @@ def generate_config(context):
         },
     }
 
+    service_account_key = {
+        "name": f"{deployment_name}-sa-key",
+        "type": "iam.v1.serviceAccounts.key",
+        "metadata": {
+            "dependsOn": [sa_name],
+        },
+        "properties": {
+            "parent": f"$(ref.{sa_name}.name)",
+        },
+    }
+
     # pylint: disable=duplicate-code
     bindings = []
     for role in roles:
@@ -39,10 +50,13 @@ def generate_config(context):
             },
         )
 
-    resources = [service_account]
+    resources = [service_account, service_account_key]
     resources.extend(bindings)
 
-    return {"resources": resources}
+    return {
+        "outputs": [{"name": "serviceAccountKey", "value": f"$(ref.{deployment_name}-sa-key.privateKeyData)"}],
+        "resources": resources,
+    }
 
 
 def get_resource_name(scope, parent_id):

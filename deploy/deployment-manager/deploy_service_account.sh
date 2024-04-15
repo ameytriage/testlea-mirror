@@ -19,7 +19,7 @@
 # 2. service account key
 
 ### Step 3: Saving the Service Account Key
-# After the script execution is complete, the user is prompted to copy the service account key and paste it in the CIS GCP integration.
+# After the script execution is complete, a KEY_FILE.json is generated and the user is instructed to copy and paste the key in the CIS GCP integration.
 
 # In case the deployment encounters any issues and fails, the script will attempt to delete the deployment along with all the associated resources that were created during the process.
 
@@ -64,15 +64,10 @@ run_command "gcloud services enable \
     cloudasset.googleapis.com"
 
 # Apply the deployment manager templates
-run_command "gcloud deployment-manager deployments create --automatic-rollback-on-error ${DEPLOYMENT_NAME} --project ${PROJECT_NAME} \
+result="$(run_command "gcloud deployment-manager deployments create --automatic-rollback-on-error ${DEPLOYMENT_NAME} --project ${PROJECT_NAME} \
     --template service_account.py \
-    --properties scope:${SCOPE},parentId:${PARENT_ID}"
+    --properties scope:${SCOPE},parentId:${PARENT_ID}")"
 
-run_command "gcloud iam service-accounts keys create KEY_FILE \
-    --iam-account=${DEPLOYMENT_NAME}-sa@${PROJECT_NAME}.iam.gserviceaccount.com"
-
-run_command "gcloud deployment-manager deployments describe ${DEPLOYMENT_NAME}"
-
-echo -e "\nDeployment completed successfully, the service account has been created. Copy the key below and paste it in the CIS GCP integration:"
-cat KEY_FILE # Print the key to the console
-echo -e "\n\nIt is also recommended to save the key in a secure location for future use."
+echo -e "$(echo "$result" | grep -o 'serviceAccountKey .*' | awk '{print $2}' | base64 -d >KEY_FILE.json)"
+echo -e "\nRun 'cat KEY_FILE.json' to view the service account key. Copy and paste it in the CIS GCP integration."
+echo -e "\n\nIt is recommended to also save the key in a secure location for future use."
