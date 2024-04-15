@@ -53,7 +53,7 @@ gcloud services enable \
 
 ADD_ROLE=false
 if is_role_not_assigned; then
-    run_command "gcloud ${SCOPE} add-iam-policy-binding ${PARENT_ID} --member=serviceAccount:${PROJECT_NUMBER}@cloudservices.gserviceaccount.com --role=${ROLE}"
+    gcloud "${SCOPE} add-iam-policy-binding ${PARENT_ID} --member=serviceAccount:${PROJECT_NUMBER}@cloudservices.gserviceaccount.com --role=${ROLE}"
     ADD_ROLE=true
 fi
 
@@ -73,7 +73,7 @@ if [ -z "$key" ]; then
 fi
 
 if [ "$ADD_ROLE" = "true" ]; then
-    run_command "gcloud ${SCOPE} remove-iam-policy-binding ${PARENT_ID} --member=serviceAccount:${PROJECT_NUMBER}@cloudservices.gserviceaccount.com --role=${ROLE}"
+    gcloud "${SCOPE} remove-iam-policy-binding ${PARENT_ID} --member=serviceAccount:${PROJECT_NUMBER}@cloudservices.gserviceaccount.com --role=${ROLE}"
 fi
 
 echo -e "\n${GREEN}Deployment complete.${RESET}\n"
