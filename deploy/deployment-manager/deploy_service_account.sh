@@ -12,6 +12,7 @@ DEPLOYMENT_LABELS=${DEPLOYMENT_LABELS:-type=cspm-gcp}
 DEPLOYMENT_NAME=${DEPLOYMENT_NAME:-elastic-agent-cspm-user}
 PROJECT_NAME="$(gcloud config get-value core/project)"
 PROJECT_NUMBER="$(gcloud projects list --filter="${PROJECT_NAME}" --format="value(PROJECT_NUMBER)")"
+ROLE="roles/resourcemanager.projectIamAdmin"
 
 export PROJECT_NAME
 export PROJECT_NUMBER
@@ -20,6 +21,7 @@ configure_scope() {
     if [ -n "$ORG_ID" ]; then
         SCOPE="organizations"
         PARENT_ID="$ORG_ID"
+        ROLE="roles/resourcemanager.organizationAdmin"
     fi
 
     # If ORG_ID is not set, SCOPE defaults to "projects" and PARENT_ID defaults to PROJECT_NAME
