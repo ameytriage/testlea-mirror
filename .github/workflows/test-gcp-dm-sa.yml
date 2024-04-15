@@ -1,0 +1,77 @@
+name: GCP Deployment Manager Test
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "[0-9]+.[0-9]+"
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/test-gcp-dm.yml"
+      - "deploy/deployment-manager/compute_engine.py"
+      - "deploy/deployment-manager/compute_engine.py.schema"
+      - "deploy/deployment-manager/deploy_compute.sh"
+      - "deploy/deployment-manager/set_env.sh"
+
+env:
+  WORKING_DIR: deploy/test-environments
+  INTEGRATIONS_SETUP_DIR: tests/integrations_setup
+  DEPLOYMENT_MANAGER_DIR: deploy/deployment-manager
+  TF_VAR_ec_api_key: ${{ secrets.EC_API_KEY }}
+  TF_VAR_ess_region: gcp-us-west2 # default region for testing deployments
+
+jobs:
+  Test-GCP-DM:
+    name: GCP Deployment Manager Test
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: "read"
+      id-token: "write"
+    steps:
+      - name: Set up unique deployment names
+        run: |
+          suffix="$(date +%s | tail -c 3)"
+          echo "TF_VAR_deployment_name=gcp-dm-ci-test-$suffix" >> $GITHUB_ENV
+          echo "GCP_DEPLOYMENT_NAME=ea-cspm-ci-dm-sa-test-$suffix" >> $GITHUB_ENV
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Init Hermit
+        run: ./bin/hermit env -r >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          poetry --version
+
+      - id: google-auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }} # this also sets the project name
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up GCP Cloud SDK
+        if: always()
+        uses: "google-github-actions/setup-gcloud@v2"
+
+      - name: Deploy GCP Service Account
+        id: deploy-service-account
+        working-directory: ${{ env.DEPLOYMENT_MANAGER_DIR }}
+        run: |
+          ./deploy_service_account.sh
+          export GCP_CREDENTIALS_JSON=$(cat KEY_FILE.json)
+          echo "::add-mask::$GCP_CREDENTIALS_JSON"
+          echo "GCP_CREDENTIALS_JSON=$GCP_CREDENTIALS_JSON" >> $GITHUB_ENV
+
+      - name: Delete GCP Service Account
+        if: always()
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          gcloud deployment-manager deployments delete $GCP_DEPLOYMENT_NAME --quiet
