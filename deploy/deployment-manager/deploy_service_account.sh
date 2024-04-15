@@ -29,12 +29,33 @@ configure_scope() {
 
 configure_scope
 
+is_role_not_assigned() {
+    local role_assigned
+    role_assigned=$(gcloud ${SCOPE} get-iam-policy "${PARENT_ID}" \
+        --flatten="bindings[].members" --format="value(bindings.members)" \
+        --filter="bindings.role=${ROLE}" \
+        --format="table[no-heading](bindings.members)" |
+        grep "${PROJECT_NUMBER}@cloudservices.gserviceaccount.com")
+
+    if [ -n "${role_assigned}" ]; then
+        return 1 # Role is assigned
+    else
+        return 0 # Role is not assigned
+    fi
+}
+
 # Enable the Google Cloud APIs needed for misconfiguration scanning
 gcloud services enable \
     iam.googleapis.com \
     deploymentmanager.googleapis.com \
     cloudresourcemanager.googleapis.com \
     cloudasset.googleapis.com
+
+ADD_ROLE=false
+if is_role_not_assigned; then
+    run_command "gcloud ${SCOPE} add-iam-policy-binding ${PARENT_ID} --member=serviceAccount:${PROJECT_NUMBER}@cloudservices.gserviceaccount.com --role=${ROLE}"
+    ADD_ROLE=true
+fi
 
 result="$(gcloud deployment-manager deployments create --automatic-rollback-on-error ${DEPLOYMENT_NAME} --project ${PROJECT_NAME} \
     --template service_account.py \
@@ -49,6 +70,10 @@ RESET='\033[0m'
 if [ -z "$key" ]; then
     echo "${RED}Error: Failed to deploy a service account. Exiting...${RESET}"
     exit 1
+fi
+
+if [ "$ADD_ROLE" = "true" ]; then
+    run_command "gcloud ${SCOPE} remove-iam-policy-binding ${PARENT_ID} --member=serviceAccount:${PROJECT_NUMBER}@cloudservices.gserviceaccount.com --role=${ROLE}"
 fi
 
 echo -e "\n${GREEN}Deployment complete.${RESET}\n"
